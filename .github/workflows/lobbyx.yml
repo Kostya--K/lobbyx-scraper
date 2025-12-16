@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,14 +27,6 @@ jobs:
         run: |
           if [ ! -f seen_candidates.json ]; then echo "[]" > seen_candidates.json; fi
 
-      - name: Restore seen candidates
-        uses: actions/cache@v4
-        with:
-          path: seen_candidates.json
-          key: seen-candidates
-          restore-keys: |
-            seen-candidates
-
       - name: Run scraper
         env:
           EMAIL_1: ${{ secrets.EMAIL_1 }}
@@ -43,8 +37,14 @@ jobs:
           TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
         run: python lobbyx_scrap.py
 
-      - name: Save seen candidates
-        uses: actions/cache@v4
-        with:
-          path: seen_candidates.json
-          key: seen-candidates
+      - name: Commit updated seen candidates
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add seen_candidates.json
+            git commit -m "Update seen candidates"
+            git push
+          fi
