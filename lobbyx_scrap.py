@@ -73,15 +73,6 @@ def login(session, email, password):
     session.post(LOGIN_URL, data=payload)
 
 
-def extract_phone(info_div):
-    """Return ONLY phone number"""
-    for div in info_div.find_all("div"):
-        text = div.get_text(strip=True)
-        if text.isdigit():
-            return text
-    return None
-
-
 def parse_candidates(html, vacancy_name, account_label):
     soup = BeautifulSoup(html, "html.parser")
     results = []
@@ -92,7 +83,8 @@ def parse_candidates(html, vacancy_name, account_label):
             continue
 
         name = tr.select_one(".form-name")
-        info = tr.select_one(".form-info")
+        info_divs = tr.select_one(".form-info").find_all("div")
+        phone_el = info_divs[1] if len(info_divs) > 1 else None
         time_el = tr.select_one(".divTableCellTime")
         age_el = tr.select_one(".divTableCellAge")
         rank_el = tr.select_one(".divTableCellRank")
@@ -106,7 +98,7 @@ def parse_candidates(html, vacancy_name, account_label):
             "account": account_label,
             "vacancy_name": vacancy_name,
             "name": name.get_text(strip=True) if name else None,
-            "phone": extract_phone(info) if info else None,
+            "phone": phone_el.get_text(strip=True) if phone_el else None,
             "created_at": time_el.get_text(strip=True) if time_el else None,
             "age": age_el.get_text(strip=True) if age_el else None,
             "rank": rank_el.get_text(strip=True) if rank_el else None,
@@ -157,19 +149,32 @@ for acc in ACCOUNTS:
 # -------------------------------------------------
 async def send_to_telegram(candidates):
     for c in candidates:
-        msg = (
-            f"👤 {c['account']}\n"
-            f"📌 {c['vacancy_name']}\n"
-            f"👨 {c['name']}\n"
-            f"📞 {c['phone']}\n"
-            f"🎂 {c['age']}\n"
-            f"🎖 {c['rank']}\n"
-            f"⚔️ Бойовий досвід: {c['combat_experience']}\n"
-            f"🚫 СЗЧ: {c['awol']}\n"
-            f"🎓 Підготовка: {c['military_training']}\n"
-            f"🕒 {c['created_at']}\n"
-            f"📎 Джерело: {c['source']}"
-        )
+        lines = []
+
+        if c.get("account"):
+            lines.append(f"👤 {c['account']}")
+        if c.get("vacancy_name"):
+            lines.append(f"📌 {c['vacancy_name']}")
+        if c.get("name"):
+            lines.append(f"👨 {c['name']}")
+        if c.get("phone"):
+            lines.append(f"📞 {c['phone']}")
+        if c.get("age"):
+            lines.append(f"🎂 {c['age']}")
+        if c.get("rank"):
+            lines.append(f"🎖 {c['rank']}")
+        if c.get("combat_experience"):
+            lines.append(f"⚔️ Бойовий досвід: {c['combat_experience']}")
+        if c.get("awol"):
+            lines.append(f"🚫 СЗЧ: {c['awol']}")
+        if c.get("military_training"):
+            lines.append(f"🎓 Підготовка: {c['military_training']}")
+        if c.get("created_at"):
+            lines.append(f"🕒 {c['created_at']}")
+        if c.get("source"):
+            lines.append(f"📎 Джерело: {c['source']}")
+
+        msg = "\n".join(lines)
 
         for chat_id in TELEGRAM_CHAT_IDS:
             await bot.send_message(chat_id=chat_id, text=msg)
