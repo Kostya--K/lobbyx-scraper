@@ -29,12 +29,12 @@ ACCOUNTS = [
     {
         "email": os.getenv("EMAIL_1"),
         "password": os.getenv("PASSWORD_1"),
-        "label": "Account 1",
+        "label": 'ББС "Сапсан"',
     },
     {
         "email": os.getenv("EMAIL_2"),
         "password": os.getenv("PASSWORD_2"),
-        "label": "Account 2",
+        "label": "14 ОМБр",
     },
 ]
 
