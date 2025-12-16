@@ -2,8 +2,9 @@ name: LobbyX Scraper
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (UTC)
-  workflow_dispatch:        # manual run button
+    # Every 10 minutes, 08:00–20:00 Kyiv time (UTC+2)
+    - cron: '*/10 6-18 * * *'
+  workflow_dispatch:
 
 jobs:
   run:
@@ -19,14 +20,19 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Ensure seen_candidates.json exists
         run: |
-          pip install -r requirements.txt
+          if [ ! -f seen_candidates.json ]; then echo "[]" > seen_candidates.json; fi
 
       - name: Restore seen candidates
         uses: actions/cache@v4
         with:
           path: seen_candidates.json
           key: seen-candidates
+          restore-keys: |
+            seen-candidates
 
       - name: Run scraper
         env:
@@ -36,8 +42,7 @@ jobs:
           PASSWORD_2: ${{ secrets.PASSWORD_2 }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
-        run: |
-          python lobbyx_scrap.py
+        run: python lobbyx_scrap.py
 
       - name: Save seen candidates
         uses: actions/cache@v4
