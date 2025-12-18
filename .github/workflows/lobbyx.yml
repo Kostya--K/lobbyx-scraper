@@ -43,7 +43,7 @@ jobs:
       # ✅ MODIFY FILE AFTER SYNC
       - name: Run scraper
         env:
-          LOG_LEVEL: DEBUG
+          LOG_LEVEL: INFO
           EMAIL_1: ${{ secrets.EMAIL_1 }}
           PASSWORD_1: ${{ secrets.PASSWORD_1 }}
           EMAIL_2: ${{ secrets.EMAIL_2 }}
