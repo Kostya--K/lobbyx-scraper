@@ -69,7 +69,6 @@ else:
 
 new_candidates = []
 
-
 # -------------------------------------------------
 # HELPERS
 # -------------------------------------------------
@@ -89,6 +88,45 @@ def login(session, email, password):
     session.post(LOGIN_URL, data=payload)
 
 
+def get_all_vacancy_links(session):
+    """
+    Collects all vacancy links using real pagination (rel="next")
+    """
+    vacancy_links = set()
+    next_url = BASE_URL
+    visited_pages = set()
+
+    while next_url:
+        if next_url in visited_pages:
+            logger.warning("Pagination loop detected, stopping")
+            break
+
+        visited_pages.add(next_url)
+        logger.debug("Loading vacancies page: %s", next_url)
+
+        r = session.get(next_url)
+        if r.status_code != 200:
+            logger.warning("Failed to load %s", next_url)
+            break
+
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # collect vacancy links
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if href.startswith("/vacancies/"):
+                vacancy_links.add(href)
+
+        # find next page
+        next_link = soup.find("a", rel="next")
+        if next_link and next_link.get("href"):
+            next_url = BASE_URL + next_link["href"]
+        else:
+            next_url = None
+
+    return vacancy_links
+
+
 def parse_candidates(html, vacancy_name, account_label):
     soup = BeautifulSoup(html, "html.parser")
     results = []
@@ -96,7 +134,8 @@ def parse_candidates(html, vacancy_name, account_label):
     for tr in soup.find_all("tr", {"data-controller": "candidate-line"}):
         cid = tr.get("data-candidate")
         if not cid or cid in seen_ids:
-            logger.debug("Skipping already seen candidate %s or cid missed", cid)
+            logger.debug("Skipping already seen candidate %s or missing cid", cid)
+            continue
 
         name = tr.select_one(".form-name")
         info_divs = tr.select_one(".form-info").find_all("div")
@@ -137,23 +176,24 @@ for acc in ACCOUNTS:
     if not acc["email"]:
         continue
 
+    logger.info("Processing account: %s", acc["label"])
+
     session = requests.Session()
     login(session, acc["email"], acc["password"])
 
-    main = session.get(BASE_URL)
-    soup = BeautifulSoup(main.text, "html.parser")
+    vacancy_links = get_all_vacancy_links(session)
 
-    vacancy_links = {
-        a["href"] for a in soup.find_all("a", href=True)
-        if a["href"].startswith("/vacancies/")
-    }
-    logger.debug(acc)
-    logger.debug("\n".join(vacancy_links))
+    logger.info(
+        "[%s] Total vacancies found: %d",
+        acc["label"],
+        len(vacancy_links),
+    )
 
     for link in vacancy_links:
         r = session.get(BASE_URL + link)
         if r.status_code != 200:
-            logger.debug("%s response is not 200", link)
+            logger.warning("Vacancy %s returned %s", link, r.status_code)
+            continue
 
         soup_v = BeautifulSoup(r.text, "html.parser")
         h1 = soup_v.find("h1")
@@ -161,7 +201,6 @@ for acc in ACCOUNTS:
 
         parsed = parse_candidates(r.text, vacancy_name, acc["label"])
         new_candidates.extend(parsed)
-
 
 # -------------------------------------------------
 # TELEGRAM SEND
@@ -209,7 +248,7 @@ if new_candidates:
 # -------------------------------------------------
 with open(SEEN_FILE, "w", encoding="utf-8") as f:
     json.dump(list(seen_ids), f, ensure_ascii=False, indent=2)
-    logger.debug("Stored candidates")
-    logger.debug("\n".join(seen_ids))
+logger.debug("Stored candidates")
+logger.debug("\n".join(seen_ids))
 
-logger.info(f"Sent {len(new_candidates)} new candidates.")
+logger.info("Sent %d new candidates.", len(new_candidates))
