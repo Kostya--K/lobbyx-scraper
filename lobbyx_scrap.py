@@ -1,12 +1,27 @@
-import requests
+import asyncio
 import json
+import logging
 import os
 import sys
-import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+import requests
 from bs4 import BeautifulSoup
 from telegram import Bot
+
+# -------------------------------------------------
+# LOGGING
+# -------------------------------------------------
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+logger = logging.getLogger("hirefire-scraper")
 
 # -------------------------------------------------
 # TIME WINDOW (Kyiv)
@@ -15,7 +30,7 @@ KYIV_TZ = ZoneInfo("Europe/Kyiv")
 now = datetime.now(KYIV_TZ)
 
 if not (8 <= now.hour < 20):
-    print("Outside Kyiv working hours")
+    logger.info("Outside Kyiv working hours")
     sys.exit(0)
 
 # -------------------------------------------------
@@ -54,6 +69,7 @@ else:
 
 new_candidates = []
 
+
 # -------------------------------------------------
 # HELPERS
 # -------------------------------------------------
@@ -80,7 +96,7 @@ def parse_candidates(html, vacancy_name, account_label):
     for tr in soup.find_all("tr", {"data-controller": "candidate-line"}):
         cid = tr.get("data-candidate")
         if not cid or cid in seen_ids:
-            continue
+            logger.debug("Skipping already seen candidate %s or cid missed", cid)
 
         name = tr.select_one(".form-name")
         info_divs = tr.select_one(".form-info").find_all("div")
@@ -131,11 +147,13 @@ for acc in ACCOUNTS:
         a["href"] for a in soup.find_all("a", href=True)
         if a["href"].startswith("/vacancies/")
     }
+    logger.debug(acc)
+    logger.debug("\n".join(vacancy_links))
 
     for link in vacancy_links:
         r = session.get(BASE_URL + link)
         if r.status_code != 200:
-            continue
+            logger.debug("%s response is not 200", link)
 
         soup_v = BeautifulSoup(r.text, "html.parser")
         h1 = soup_v.find("h1")
@@ -143,6 +161,7 @@ for acc in ACCOUNTS:
 
         parsed = parse_candidates(r.text, vacancy_name, acc["label"])
         new_candidates.extend(parsed)
+
 
 # -------------------------------------------------
 # TELEGRAM SEND
@@ -190,5 +209,7 @@ if new_candidates:
 # -------------------------------------------------
 with open(SEEN_FILE, "w", encoding="utf-8") as f:
     json.dump(list(seen_ids), f, ensure_ascii=False, indent=2)
+    logger.debug("Stored candidates")
+    logger.debug("\n".join(seen_ids))
 
-print(f"Sent {len(new_candidates)} new candidates.")
+logger.info(f"Sent {len(new_candidates)} new candidates.")
