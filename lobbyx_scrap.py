@@ -44,18 +44,17 @@ ACCOUNTS = [
     {
         "email": os.getenv("EMAIL_1"),
         "password": os.getenv("PASSWORD_1"),
-        "label": 'ББС "Сапсан"',
+        "label": 'ББС',
     },
     {
         "email": os.getenv("EMAIL_2"),
         "password": os.getenv("PASSWORD_2"),
-        "label": "14 ОМБр",
+        "label": "14",
     },
 ]
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_IDS = json.loads(os.getenv("TELEGRAM_CHAT_IDS"))
-logger.debug("Chat ids: %s", ', '.join(str(x) for x in TELEGRAM_CHAT_IDS))
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
@@ -103,7 +102,6 @@ def get_all_vacancy_links(session):
             break
 
         visited_pages.add(next_url)
-        logger.debug("Loading vacancies page: %s", next_url)
 
         r = session.get(next_url)
         if r.status_code != 200:
@@ -249,7 +247,5 @@ if new_candidates:
 # -------------------------------------------------
 with open(SEEN_FILE, "w", encoding="utf-8") as f:
     json.dump(list(seen_ids), f, ensure_ascii=False, indent=2)
-logger.debug("Stored candidates")
-logger.debug("\n".join(seen_ids))
 
 logger.info("Sent %d new candidates.", len(new_candidates))
