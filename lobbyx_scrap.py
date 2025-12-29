@@ -55,7 +55,7 @@ ACCOUNTS = [
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_IDS = json.loads(os.getenv("TELEGRAM_CHAT_IDS"))
-logger.debug("Chat ids: %s", ', '.join(TELEGRAM_CHAT_IDS))
+logger.debug("Chat ids: %s", ', '.join(str(x) for x in TELEGRAM_CHAT_IDS))
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
