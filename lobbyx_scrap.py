@@ -10,9 +10,6 @@ import requests
 from bs4 import BeautifulSoup
 from telegram import Bot
 
-# -------------------------------------------------
-# LOGGING
-# -------------------------------------------------
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 logging.basicConfig(
@@ -23,9 +20,6 @@ logging.basicConfig(
 
 logger = logging.getLogger("hirefire-scraper")
 
-# -------------------------------------------------
-# TIME WINDOW (Kyiv)
-# -------------------------------------------------
 KYIV_TZ = ZoneInfo("Europe/Kyiv")
 now = datetime.now(KYIV_TZ)
 
@@ -33,9 +27,6 @@ if not (8 <= now.hour < 20):
     logger.info("Outside Kyiv working hours")
     sys.exit(0)
 
-# -------------------------------------------------
-# CONFIG
-# -------------------------------------------------
 LOGIN_URL = "https://hirefire.thelobbyx.com/login"
 BASE_URL = "https://hirefire.thelobbyx.com"
 SEEN_FILE = "seen_candidates.json"
@@ -58,9 +49,7 @@ TELEGRAM_CHAT_IDS = json.loads(os.getenv("TELEGRAM_CHAT_IDS"))
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
-# -------------------------------------------------
-# LOAD SEEN IDS
-# -------------------------------------------------
+
 if os.path.exists(SEEN_FILE):
     with open(SEEN_FILE, "r", encoding="utf-8") as f:
         seen_ids = set(json.load(f))
@@ -69,9 +58,7 @@ else:
 
 new_candidates = []
 
-# -------------------------------------------------
-# HELPERS
-# -------------------------------------------------
+
 def login(session, email, password):
     r = session.get(LOGIN_URL)
     soup = BeautifulSoup(r.text, "html.parser")
@@ -168,9 +155,6 @@ def parse_candidates(html, vacancy_name, account_label):
     return results
 
 
-# -------------------------------------------------
-# SCRAPE ALL ACCOUNTS
-# -------------------------------------------------
 for acc in ACCOUNTS:
     if not acc["email"]:
         continue
@@ -201,9 +185,6 @@ for acc in ACCOUNTS:
         parsed = parse_candidates(r.text, vacancy_name, acc["label"])
         new_candidates.extend(parsed)
 
-# -------------------------------------------------
-# TELEGRAM SEND
-# -------------------------------------------------
 async def send_to_telegram(candidates):
     for c in candidates:
         lines = []
@@ -242,9 +223,7 @@ async def send_to_telegram(candidates):
 if new_candidates:
     asyncio.run(send_to_telegram(new_candidates))
 
-# -------------------------------------------------
-# SAVE STATE
-# -------------------------------------------------
+
 with open(SEEN_FILE, "w", encoding="utf-8") as f:
     json.dump(list(seen_ids), f, ensure_ascii=False, indent=2)
 

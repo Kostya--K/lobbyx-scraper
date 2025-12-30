@@ -9,7 +9,7 @@ concurrency:
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "0,30 6-18 * * *"
   workflow_dispatch:
 
 jobs:
@@ -30,7 +30,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ✅ SYNC FIRST
       - name: Sync with remote
         run: |
           git fetch origin
@@ -40,7 +39,6 @@ jobs:
         run: |
           if [ ! -f seen_candidates.json ]; then echo "[]" > seen_candidates.json; fi
 
-      # ✅ MODIFY FILE AFTER SYNC
       - name: Run scraper
         env:
           LOG_LEVEL: INFO
@@ -52,7 +50,6 @@ jobs:
           TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
         run: python lobbyx_scrap.py
 
-      # ✅ COMMIT ONLY
       - name: Commit updated seen candidates
         run: |
           if git diff --quiet; then
